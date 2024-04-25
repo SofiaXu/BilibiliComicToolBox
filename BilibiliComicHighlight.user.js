@@ -8,6 +8,7 @@
 // @match        https://manga.bilibili.com/account-center/read-history
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=manga.bilibili.com
 // @grant        none
+// @license      MIT
 // ==/UserScript==
 
 (function () {
