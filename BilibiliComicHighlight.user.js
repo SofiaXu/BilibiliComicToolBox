@@ -2,7 +2,7 @@
 // @name         Bilibili Comic Highlight
 // @namespace    http://tampermonkey.net/
 // @version      2024-04-24
-// @description  try to take over the world!
+// @description  对bilibili漫画列表进行高亮
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/account-center/my-favourite
 // @match        https://manga.bilibili.com/account-center/read-history
