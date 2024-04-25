@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Comic Highlight
 // @namespace    http://tampermonkey.net/
-// @version      2024-04-24
+// @version      1.0
 // @description  对bilibili漫画列表进行高亮
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/account-center/my-favourite
