@@ -7,6 +7,7 @@
 // @match        https://manga.bilibili.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=manga.bilibili.com
 // @grant        none
+// @license      MIT
 // ==/UserScript==
 
 (async function () {
