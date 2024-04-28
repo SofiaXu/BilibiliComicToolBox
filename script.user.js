@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B 漫工具箱
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.0.1
 // @description  进行一键购买和下载漫画的工具箱，同时可以对已读漫画进行高亮
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
@@ -27,7 +27,14 @@
       );
       return await res.json();
     },
-    buyEpisode: async (epId, buyMethod = 1, autoPayGoldStatus = undefined) => {
+    buyEpisode: async (epId, buyMethod = 1, couponIds = undefined) => {
+      const body = {
+        buy_method: buyMethod,
+        ep_id: epId,
+      };
+      if (couponIds) {
+        body.coupon_ids = couponIds;
+      }
       const res = await fetch(
         "https://manga.bilibili.com/twirp/comic.v1.Comic/BuyEpisode?device=pc&platform=web",
         {
@@ -35,11 +42,7 @@
             accept: "application/json, text/plain, */*",
             "content-type": "application/json;charset=UTF-8",
           },
-          body: `{\"buy_method\":${buyMethod},\"ep_id\":${epId}${
-            autoPayGoldStatus
-              ? `,"auto_pay_gold_status":${autoPayGoldStatus}`
-              : ""
-          }}`,
+          body: JSON.stringify(body),
           method: "POST",
           credentials: "include",
         }
@@ -156,7 +159,7 @@
     const createPopupPanel = (styles) => {
       const panel = document.createElement("div");
       styles.addStyle(
-        `.b-toolbox-popup { top:70px; right: 1rem; position: fixed; border-radius: 6px; }`
+        `.b-toolbox-popup { top:70px; right: 1rem; position: fixed; border-radius: 6px; max-height: 50% }`
       );
       panel.className = "b-toolbox-popup b-toolbox-d-flex";
       document.body.append(panel);
@@ -196,6 +199,7 @@
     const createStatusDisplay = (parentPanel) => {
       const panel = document.createElement("div");
       panel.className = "b-toolbox-d-flex b-toolbox-flex-column";
+      panel.style.overflow = "auto";
       panel.insertAdjacentHTML("beforeEnd", "<div>等待任务</div>");
       parentPanel.append(panel);
       let timer = 0;
@@ -221,11 +225,6 @@
     };
     const statusDisplay = createStatusDisplay(toolboxPanel);
     const createBatchAutoPayBtn = (parentPanel, statusDisplay) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.insertAdjacentHTML("beforeEnd", "<div>用券购买剩余项</div>");
-      btn.className += "b-toolbox-toolbox-btn";
-      parentPanel.append(btn);
       const inputContainer = document.createElement("div");
       inputContainer.className = "b-toolbox-d-flex";
       parentPanel.append(inputContainer);
@@ -236,33 +235,28 @@
       const checkBoxLabel = document.createElement("label");
       checkBoxLabel.innerText = "使用通用券";
       inputContainer.append(checkBoxLabel);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.insertAdjacentHTML("beforeEnd", "<div>用券购买剩余项</div>");
+      btn.className += "b-toolbox-toolbox-btn";
+      parentPanel.append(btn);
       btn.addEventListener("click", async () => {
         btn.disabled = true;
         const epList = comicInfo.data.ep_list;
         epList.reverse();
         const lockedEps = epList.filter((x) => x.is_locked);
-        let isOpenAutoPay = false;
-        let hasOpenAutoPay = false;
-        let autoPayId = comicInfo.data.auto_pay_info.id;
         statusDisplay.addStatus(`共${lockedEps.length}个未解锁章节`);
         const canUseSilver = checkBox.checked;
         for (let i = 0; i < lockedEps.length; i++) {
           const ep = lockedEps[i];
           statusDisplay.addStatus(`正在购买第${ep.title}话`);
           const res = await api.getEpisodeBuyInfo(ep.id);
-          if (i === 0) {
-            isOpenAutoPay = res.data.auto_pay_gold_status === 1;
-            if (isOpenAutoPay) {
-              statusDisplay.addStatus(`开启自动购买`);
-            } else {
-              statusDisplay.addStatus(`尝试开启自动购买`);
-              hasOpenAutoPay = true;
-            }
-          }
           if (res.data.allow_coupon && res.data.remain_coupon > 0) {
-            const buyRes = isOpenAutoPay
-              ? await api.buyEpisode(ep.id, 1)
-              : await api.buyEpisode(ep.id, 1, 1);
+            const buyRes = await api.buyEpisode(
+              ep.id,
+              2,
+              res.data.recommend_coupon_ids
+            );
             if (buyRes.msg === "本话无需购买") {
               statusDisplay.addStatus(`第${ep.ord}话${ep.title}无需购买`);
             } else {
@@ -273,16 +267,9 @@
                     : ""
                 }`
               );
-              if (i === 0 && hasOpenAutoPay) {
-                autoPayId = (await api.getComicDetail(comicId)).data
-                  .auto_pay_info.id;
-                statusDisplay.addStatus(`已开启自动购买`);
-              }
             }
           } else if (res.data.remain_silver > 0 && canUseSilver) {
-            const buyRes = isOpenAutoPay
-              ? await api.buyEpisode(ep.id, 1)
-              : await api.buyEpisode(ep.id, 5, 1);
+            const buyRes = await api.buyEpisode(ep.id, 5);
             if (buyRes.msg === "本话无需购买") {
               statusDisplay.addStatus(`第${ep.ord}话${ep.title}无需购买`);
             } else {
@@ -293,11 +280,6 @@
                     : ""
                 }`
               );
-              if (i === 0 && hasOpenAutoPay) {
-                autoPayId = (await api.getComicDetail(comicId)).data
-                  .auto_pay_info.id;
-                statusDisplay.addStatus(`已开启自动购买`);
-              }
             }
           } else {
             if (!res.data.allow_coupon) {
@@ -317,10 +299,6 @@
             await new Promise((resolve) => setTimeout(resolve, delay));
           }
         }
-        if (hasOpenAutoPay) {
-          statusDisplay.addStatus(`关闭自动购买`);
-          await api.updateAutoBuyComic(autoPayId, 2);
-        }
         statusDisplay.complete();
         btn.disabled = false;
       });
@@ -330,21 +308,21 @@
       return name.replace(/[\\/:*?"<>|]/g, "_").replace(/\.\.$/, "_");
     };
     const createDownloadBtn = (parentPanel, statusDisplay) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.insertAdjacentHTML("beforeEnd", "<div>下载本书已购内容</div>");
-      btn.className += "b-toolbox-toolbox-btn";
-      parentPanel.append(btn);
       const inputContainer = document.createElement("div");
       inputContainer.className = "b-toolbox-d-flex b-toolbox-flex-column";
       parentPanel.append(inputContainer);
       const label = document.createElement("label");
-      label.innerText = "下载范围";
+      label.innerText = "下载范围（空则下载全部）";
       inputContainer.append(label);
       const rangeInput = document.createElement("input");
       rangeInput.type = "text";
       rangeInput.placeholder = "1-10, 12, 15-20";
       inputContainer.append(rangeInput);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.insertAdjacentHTML("beforeEnd", "<div>下载本书已购内容</div>");
+      btn.className += "b-toolbox-toolbox-btn";
+      parentPanel.append(btn);
       btn.addEventListener("click", async () => {
         btn.disabled = true;
         const { storage, needExport } = (() => {
@@ -511,7 +489,6 @@
             if (!node.dataset) continue;
             const id = JSON.parse(node.dataset.biliMangaMsg).manga_id;
             const manga = mangaMap.get(id);
-            console.log(manga);
             if (manga) {
               if (manga.latest_ep_id !== manga.last_ep_id) {
                 node.classList.add("b-toolbox-manga-card-unread");
