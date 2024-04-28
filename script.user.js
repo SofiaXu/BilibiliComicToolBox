@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         B 漫工具箱
 // @namespace    http://tampermonkey.net/
-// @version      2.0.1
-// @description  进行一键购买和下载漫画的工具箱，同时可以对已读漫画进行高亮
+// @version      2.0.2
+// @description  进行一键购买和下载漫画的工具箱，对历史/收藏已读完漫画进行高亮为绿色，将阅读页面图片替换成原图大小
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=manga.bilibili.com
@@ -501,5 +501,38 @@
       }
     });
     observer.observe(targetNode, config);
+  }
+  if (location.pathname.match(/^\/mc\d+\/\d+$/)) {
+    const originalXhrOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (
+      method,
+      url,
+      async,
+      user,
+      password
+    ) {
+      if (
+        url === "/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web" &&
+        method === "POST"
+      ) {
+        XMLHttpRequest.prototype.NeedModifyBody = true;
+      } else {
+        XMLHttpRequest.prototype.NeedModifyBody = false;
+      }
+      originalXhrOpen.apply(this, arguments);
+    };
+    const originalXhrSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function (body) {
+      if (this.NeedModifyBody) {
+        const json = JSON.parse(body);
+        const urls = JSON.parse(json.urls);
+        body = JSON.stringify({
+          urls: JSON.stringify(urls.map((x) => x.replace(/\@1100w\.jpg$/, ""))),
+        });
+        originalXhrSend.apply(this, [body]);
+      } else {
+        originalXhrSend.apply(this, arguments);
+      }
+    };
   }
 })();
