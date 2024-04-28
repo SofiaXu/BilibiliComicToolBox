@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         B 漫工具箱
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/SofiaXu/BilibiliComicToolBox
 // @version      2.0.2
 // @description  进行一键购买和下载漫画的工具箱，对历史/收藏已读完漫画进行高亮为绿色，将阅读页面图片替换成原图大小
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=manga.bilibili.com
+// @icon         https://www.bilibili.com/favicon.ico
 // @grant        none
 // @license      MIT
 // ==/UserScript==
