@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         B 漫工具箱
 // @namespace    https://github.com/SofiaXu/BilibiliComicToolBox
-// @version      2.0.3
+// @version      2.1.0
 // @description  进行一键购买和下载漫画的工具箱，对历史/收藏已读完漫画进行高亮为绿色，将阅读页面图片替换成原图大小
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
 // @icon         https://www.bilibili.com/favicon.ico
+// @require      https://cdn.bootcdn.net/ajax/libs/jszip/3.10.1/jszip.min.js
 // @grant        none
 // @license      MIT
 // ==/UserScript==
@@ -343,11 +344,6 @@
             };
           }
         })();
-        // TODO: check storage permission
-        if (needExport) {
-          statusDisplay.addStatus(`暂不支持导出`);
-          statusDisplay.complete();
-        }
         const epList = comicInfo.data.ep_list;
         epList.reverse();
         let unlockedEps = epList.filter((x) => !x.is_locked);
@@ -422,7 +418,25 @@
         }
         if (needExport) {
           statusDisplay.addStatus(`导出下载文件`);
-          // TODO: export files
+          const zip = new JSZip();
+          const comicZipFolder = zip.folder(comicFolder.name);
+          const eps = comicFolder.values();
+          for await (const ep of eps) {
+            const epZipFolder = comicZipFolder.folder(ep.name);
+            const files = ep.values();
+            for await (const file of files) {
+              const content = await file.getFile();
+              epZipFolder.file(file.name, content);
+            }
+          }
+          const blob = await zip.generateAsync({ type: "blob" });
+          dir.removeEntry(comicFolder.name, { recursive: true });
+          const a = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          a.href = url;
+          a.download = `${comicFolder.name}.zip`;
+          a.click();
+          URL.revokeObjectURL(url);
         }
         statusDisplay.complete();
         btn.disabled = false;
