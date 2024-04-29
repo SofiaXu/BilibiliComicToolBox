@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B 漫工具箱
 // @namespace    https://github.com/SofiaXu/BilibiliComicToolBox
-// @version      2.0.2
+// @version      2.0.3
 // @description  进行一键购买和下载漫画的工具箱，对历史/收藏已读完漫画进行高亮为绿色，将阅读页面图片替换成原图大小
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
@@ -439,8 +439,9 @@
     const mangaMap = new Map();
     let page = 1;
     let order = parseInt(localStorage.getItem("BilibiliManga:favListOrder"));
+    let lastPathname = location.pathname;
     let getNext =
-      location.pathname === "/account-center/my-favourite"
+      lastPathname === "/account-center/my-favourite"
         ? api.listFavorite
         : api.listHistory;
     const observer = new MutationObserver(async (mutationsList) => {
@@ -451,10 +452,15 @@
         order = newOrder;
         page = 1;
       }
-      if (location.pathname === "/account-center/my-favourite") {
-        getNext = api.listFavorite;
-      } else {
-        getNext = api.listHistory;
+      const newPathname = location.pathname;
+      if (newPathname !== lastPathname) {
+        if (newPathname === "/account-center/my-favourite") {
+          getNext = api.listFavorite;
+        } else {
+          getNext = api.listHistory;
+        }
+        page = 1;
+        lastPathname = newPathname;
       }
       const mangaList = (await getNext(page++, order)).data;
       mangaList.forEach((manga) => {
@@ -473,7 +479,7 @@
               const id = JSON.parse(node.dataset.biliMangaMsg).manga_id;
               const manga = mangaMap.get(id);
               if (manga) {
-                if (manga.latest_ep_id !== manga.last_ep_id) {
+                if (manga.last_ep_short_title !== manga.latest_ep_short_title) {
                   node.classList.add("b-toolbox-manga-card-unread");
                 } else {
                   node.classList.add("b-toolbox-manga-card-read");
@@ -491,7 +497,7 @@
             const id = JSON.parse(node.dataset.biliMangaMsg).manga_id;
             const manga = mangaMap.get(id);
             if (manga) {
-              if (manga.latest_ep_id !== manga.last_ep_id) {
+              if (manga.last_ep_short_title !== manga.latest_ep_short_title) {
                 node.classList.add("b-toolbox-manga-card-unread");
               } else {
                 node.classList.add("b-toolbox-manga-card-read");
