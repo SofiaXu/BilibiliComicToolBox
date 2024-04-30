@@ -156,6 +156,24 @@
       },
     };
   };
+  const createPriceTag = (price) => {
+    const tag = document.createElement("div");
+    tag.textContent = `${price}币`;
+    styles.addStyle(`
+      .b-toolbox-price-tag {
+        position: absolute;
+        left: 0;
+        top: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 2px 4px;
+        font-size: 12px;
+        border-radius: 0 0 4px 0;
+      }
+    `);
+    tag.className = "b-toolbox-price-tag";
+    return tag;
+  };
   const styles = createStyles();
   if (location.pathname.match(/^\/detail\/mc\d+$/)) {
     const createPopupPanel = (styles) => {
@@ -495,6 +513,10 @@
               if (manga) {
                 if (manga.last_ep_short_title !== manga.latest_ep_short_title) {
                   node.classList.add("b-toolbox-manga-card-unread");
+                  const detail = await api.getComicDetail(id);
+                  const price = detail.data.ep_list[0].pay_gold;
+                  const priceTag = createPriceTag(price);
+                  node.appendChild(priceTag);
                 } else {
                   node.classList.add("b-toolbox-manga-card-read");
                 }
