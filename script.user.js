@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B 漫工具箱
 // @namespace    https://github.com/SofiaXu/BilibiliComicToolBox
-// @version      2.1.0
+// @version      2.1.1
 // @description  进行一键购买和下载漫画的工具箱，对历史/收藏已读完漫画进行高亮为绿色，将阅读页面图片替换成原图大小
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
@@ -161,6 +161,42 @@
     tag.textContent = `${price}币`;
     tag.className = "b-toolbox-price-tag";
     return tag;
+  };
+  const processUnreadManga = async (manga, node) => {
+    const isUnread = manga.last_ep_short_title !== manga.latest_ep_short_title;
+    node.classList.add(
+      isUnread ? "b-toolbox-manga-card-unread" : "b-toolbox-manga-card-read"
+    );
+
+    if (isUnread) {
+      try {
+        const priceKey = `manga_price_${manga.comic_id}`;
+        const storedPrice = localStorage.getItem(priceKey);
+
+        if (storedPrice !== null) {
+          node.appendChild(createPriceTag(parseInt(storedPrice)));
+        } else {
+          const { data: detail } = await api.getEpisodeBuyInfo(
+            manga.latest_ep_id
+          );
+          let price = detail?.pay_gold ?? 0;
+
+          if (price === 0) {
+            const { data } = await api.getComicDetail(manga.comic_id);
+            price =
+              data?.comic_type === 0
+                ? 0
+                : data?.ep_list?.slice(1).find((ep) => ep?.pay_gold !== 0)
+                    ?.pay_gold ?? 0;
+          }
+
+          localStorage.setItem(priceKey, price.toString());
+          node.appendChild(createPriceTag(price));
+        }
+      } catch (error) {
+        console.error(`获取漫画：${manga.comic_id} 价格失败:`, error);
+      }
+    }
   };
   const styles = createStyles();
   if (location.pathname.match(/^\/detail\/mc\d+$/)) {
@@ -510,15 +546,7 @@
               const id = JSON.parse(node.dataset.biliMangaMsg).manga_id;
               const manga = mangaMap.get(id);
               if (manga) {
-                if (manga.last_ep_short_title !== manga.latest_ep_short_title) {
-                  node.classList.add("b-toolbox-manga-card-unread");
-                  const detail = await api.getComicDetail(id);
-                  const price = detail.data.ep_list[0].pay_gold;
-                  const priceTag = createPriceTag(price);
-                  node.appendChild(priceTag);
-                } else {
-                  node.classList.add("b-toolbox-manga-card-read");
-                }
+                processUnreadManga(manga, node);
               }
             }
           }
@@ -532,11 +560,7 @@
             const id = JSON.parse(node.dataset.biliMangaMsg).manga_id;
             const manga = mangaMap.get(id);
             if (manga) {
-              if (manga.last_ep_short_title !== manga.latest_ep_short_title) {
-                node.classList.add("b-toolbox-manga-card-unread");
-              } else {
-                node.classList.add("b-toolbox-manga-card-read");
-              }
+              processUnreadManga(manga, node);
             }
           }
         }
