@@ -18,19 +18,19 @@
 
 1. 不能下载漫画？好，上 2.5MiB 的原图批量下载，Chrome/Edge 用户直接存到本地文件夹，不需要任何操作
 
-![下载漫画](img/001.png)
+![下载漫画](https://github.com/SofiaXu/BilibiliComicToolBox/raw/master/img/001.png)
 
 2. 不能看原图质量？好，每个漫画都可以看到原图质量，不需要任何操作
 
-![查看原图](img/002.png)
+![查看原图](https://github.com/SofiaXu/BilibiliComicToolBox/raw/master/img/002.png)
 
 3. 每次活动完都送一堆券？慢慢点购买很累？好，一键用券购买整本漫画，不需要任何操作
 
-![一键购买](img/003.png)
+![一键购买](https://github.com/SofiaXu/BilibiliComicToolBox/raw/master/img/003.png)
 
 4. 漫画太多了？更新了一堆想不起来哪个没看？好，书架自带已读高亮
 
-![已读高亮](img/004.png)
+![已读高亮](https://github.com/SofiaXu/BilibiliComicToolBox/raw/master/img/004.png)
 
 ## 安装
 
@@ -41,3 +41,7 @@
 ## 许可证
 
 MIT
+
+## 仓库
+
+[GitHub](https://github.com/SofiaXu/BilibiliComicToolBox)
