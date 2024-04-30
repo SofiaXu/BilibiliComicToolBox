@@ -159,18 +159,6 @@
   const createPriceTag = (price) => {
     const tag = document.createElement("div");
     tag.textContent = `${price}币`;
-    styles.addStyle(`
-      .b-toolbox-price-tag {
-        position: absolute;
-        left: 0;
-        top: 0;
-        background-color: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 2px 4px;
-        font-size: 12px;
-        border-radius: 0 0 4px 0;
-      }
-    `);
     tag.className = "b-toolbox-price-tag";
     return tag;
   };
@@ -498,9 +486,20 @@
       mangaList.forEach((manga) => {
         mangaMap.set(manga.comic_id, manga);
       });
-      styles.addStyle(
-        `.b-toolbox-manga-card-read { background-color: rgb(123, 213, 85) } .b-toolbox-manga-card-unread { background-color: rgb(61, 180, 242) }`
-      );
+      styles.addStyle(`
+        .b-toolbox-manga-card-read { background-color: rgb(123, 213, 85) }
+        .b-toolbox-manga-card-unread { background-color: rgb(61, 180, 242) }
+        .b-toolbox-price-tag {
+          position: absolute;
+          left: 0;
+          top: 0;
+          background-color: rgba(0, 0, 0, 0.7);
+          color: white;
+          padding: 2px 4px;
+          font-size: 12px;
+          border-radius: 0 0 4px 0;
+        }
+      `);
       for (const mutation of mutationsList) {
         if (mutation.target.className === "p-relative") {
           if (mutation.addedNodes.length > 0) {
