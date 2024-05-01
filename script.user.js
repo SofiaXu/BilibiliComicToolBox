@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B 漫工具箱
 // @namespace    https://github.com/SofiaXu/BilibiliComicToolBox
-// @version      2.2.0
+// @version      2.3.0
 // @description  进行一键购买和下载漫画的工具箱，对历史/收藏已读完漫画进行高亮为绿色，将阅读页面图片替换成原图大小
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
@@ -544,11 +544,39 @@
     const config = { childList: true, subtree: true };
     const targetNode = document.body;
     const mangaMap = new Map();
-    const createPriceTag = (price) => {
+    const createTag = (mangaData) => {
       const tag = document.createElement("div");
-      tag.textContent = `${price}币`;
+      tag.textContent =
+        (mangaData.price === 0 ? "免费" : `${mangaData.price} 币`) +
+        ` 未读 ${
+          mangaData.readIndex > -1 ? mangaData.readIndex : mangaData.ordCount
+        } 话`;
       tag.className = "b-toolbox-price-tag";
       return tag;
+    };
+    const reloadMangaData = async (manga) => {
+      let { data } = await api.getComicDetail(manga.comic_id);
+      const price =
+        data?.comic_type === 0
+          ? 0
+          : data?.ep_list?.find((ep) => ep?.pay_gold !== 0)?.pay_gold ?? 0;
+      const latestEpId = data?.ep_list?.[0]?.id;
+      const latestEpShortTitle = data?.ep_list?.[0]?.short_title;
+      const readIndex = data?.ep_list?.findIndex(
+        (ep) => ep.short_title === manga.last_ep_short_title
+      );
+      const readEpId = data?.ep_list?.[readIndex]?.id;
+      const readEpShortTitle = data?.ep_list?.[readIndex]?.short_title;
+      const ordCount = data?.ep_list?.length;
+      return {
+        price,
+        latestEpId,
+        latestEpShortTitle,
+        readEpId,
+        readEpShortTitle,
+        ordCount,
+        readIndex,
+      };
     };
     const processUnreadManga = async (manga, node) => {
       const isUnread =
@@ -559,28 +587,27 @@
 
       if (isUnread) {
         try {
-          const priceKey = `manga_price_${manga.comic_id}`;
-          const storedPrice = localStorage.getItem(priceKey);
-
-          if (storedPrice !== null) {
-            node.appendChild(createPriceTag(parseInt(storedPrice)));
-          } else {
-            const { data: detail } = await api.getEpisodeBuyInfo(
-              manga.latest_ep_id
-            );
-            let price = detail?.pay_gold ?? 0;
-
-            if (price === 0) {
-              const { data } = await api.getComicDetail(manga.comic_id);
-              price =
-                data?.comic_type === 0
-                  ? 0
-                  : data?.ep_list?.slice(1).find((ep) => ep?.pay_gold !== 0)
-                      ?.pay_gold ?? 0;
+          const mangaCacheKey = `bToolboxMangaCache:${manga.comic_id}`;
+          const cachedManga = localStorage.getItem(mangaCacheKey);
+          if (cachedManga) {
+            let mangaData = JSON.parse(cachedManga);
+            if (
+              mangaData.ordCount !== manga.ord_count &&
+              mangaData.readEpShortTitle === manga.last_ep_short_title
+            ) {
+              mangaData.ordCount = manga.ord_count;
+              mangaData.readIndex =
+                manga.readIndex + (manga.ord_count - mangaData.ordCount);
+              localStorage.setItem(mangaCacheKey, JSON.stringify(mangaData));
+            } else {
+              mangaData = await reloadMangaData(manga);
+              localStorage.setItem(mangaCacheKey, JSON.stringify(mangaData));
             }
-
-            localStorage.setItem(priceKey, price.toString());
-            node.appendChild(createPriceTag(price));
+            node.appendChild(createTag(mangaData));
+          } else {
+            const mangaData = await reloadMangaData(manga);
+            localStorage.setItem(mangaCacheKey, JSON.stringify(mangaData));
+            node.appendChild(createTag(mangaData));
           }
         } catch (error) {
           console.error(`获取漫画：${manga.comic_id} 价格失败:`, error);
