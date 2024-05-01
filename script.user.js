@@ -320,6 +320,30 @@
       rangeInput.type = "text";
       rangeInput.placeholder = "1-10, 12, 15-20";
       inputContainer.append(rangeInput);
+      const formatSelectionContainer = document.createElement("div");
+      formatSelectionContainer.className =
+        "b-toolbox-d-flex b-toolbox-flex-column";
+      parentPanel.append(formatSelectionContainer);
+      const formatLabel = document.createElement("label");
+      formatLabel.innerText = "下载格式";
+      formatSelectionContainer.append(formatLabel);
+      const formatSelect = document.createElement("select");
+      formatSelect.insertAdjacentHTML(
+        "afterbegin",
+        `
+      ${
+        window.showDirectoryPicker
+          ? `<option value="folder">文件夹</option>
+          <option value="folder-cbz">文件夹+章节 CBZ</option>
+          `
+          : ""
+      }
+      <option value="zip">ZIP</option>
+      <option value="cbz">CBZ</option>
+      <option value="zip-cbz">ZIP+章节 CBZ</option>
+      `
+      );
+      formatSelectionContainer.append(formatSelect);
       const btn = document.createElement("button");
       btn.type = "button";
       btn.insertAdjacentHTML("beforeEnd", "<div>下载本书已购内容</div>");
@@ -327,8 +351,9 @@
       parentPanel.append(btn);
       btn.addEventListener("click", async () => {
         btn.disabled = true;
+        const format = formatSelect.value;
         const { storage, needExport } = (() => {
-          if (window.showDirectoryPicker) {
+          if (window.showDirectoryPicker && format.startsWith("folder")) {
             return {
               storage: window.showDirectoryPicker({
                 id: "b-toolbox-download-folder",
@@ -412,29 +437,97 @@
             await res.body.pipeTo(writable);
           });
           await Promise.all(tasks);
-          const delay = Math.floor(Math.random() * 10) * 1000;
-          statusDisplay.addStatus(`等待${delay}ms`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          if (format.endsWith("-cbz")) {
+            const comicInfoXml = `
+            <?xml version="1.0" encoding="UTF-8"?>
+            <ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+              <Title>${comicInfo.data.title}</Title>
+              <Series>${comicInfo.data.title}</Series>
+              <Volume>1</Volume>
+              <Number>${ep.ord}</Number>
+              <Writer>${comicInfo.data.author_name.join("; ")}</Writer>
+              <Cover>${comicInfo.data.horizontal_cover}</Cover>
+              <PageCount>${downloadUrls.length}</PageCount>
+              <Summary>${comicInfo.data.evaluate}</Summary>
+              <Manga>YesAndRightToLeft</Manga>
+            </ComicInfo>
+            `;
+            const comicInfoFile = await epFolder.getFileHandle(
+              "ComicInfo.xml",
+              { create: true }
+            );
+            const writable = await comicInfoFile.createWritable();
+            await writable.write(comicInfoXml);
+            await writable.close();
+            const zip = new JSZip();
+            const epZipFolder = zip.folder(epFolder.name);
+            const files = epFolder.values();
+            for await (const file of files) {
+              const content = await file.getFile();
+              epZipFolder.file(file.name, content);
+            }
+            const blob = await zip.generateAsync({ type: "blob" });
+            const cbzFile = await comicFolder.getFileHandle(
+              `${epFolder.name}.cbz`,
+              { create: true }
+            );
+            const writableCbz = await cbzFile.createWritable();
+            await writableCbz.write(blob);
+            await writableCbz.close();
+            comicFolder.removeEntry(epFolder.name, { recursive: true });
+          }
+          if (i % 5 === 0 && i !== unlockedEps.length - 1) {
+            const delay = Math.floor(Math.random() * 1000) + 500;
+            statusDisplay.addStatus(`等待${delay}ms`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
         }
         if (needExport) {
           statusDisplay.addStatus(`导出下载文件`);
           const zip = new JSZip();
           const comicZipFolder = zip.folder(comicFolder.name);
           const eps = comicFolder.values();
-          for await (const ep of eps) {
-            const epZipFolder = comicZipFolder.folder(ep.name);
-            const files = ep.values();
-            for await (const file of files) {
-              const content = await file.getFile();
-              epZipFolder.file(file.name, content);
+          if (format === "zip-cbz") {
+            for await (const ep of eps) {
+              if (ep.name.endsWith(".cbz")) {
+                const epCbzContent = await ep.getFile();
+                comicZipFolder.file(ep.name, epCbzContent);
+              }
             }
+          } else {
+            for await (const ep of eps) {
+              const epZipFolder = comicZipFolder.folder(ep.name);
+              const files = ep.values();
+              for await (const file of files) {
+                const content = await file.getFile();
+                epZipFolder.file(file.name, content);
+              }
+            }
+          }
+          if (format === "cbz") {
+            const comicInfoXml = `
+            <?xml version="1.0" encoding="UTF-8"?>
+            <ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+              <Title>${comicInfo.data.title}</Title>
+              <Series>${comicInfo.data.title}</Series>
+              <Volume>1</Volume>
+              <Number>1</Number>
+              <Writer>${comicInfo.data.author_name.join("; ")}</Writer>
+              <Cover>${comicInfo.data.horizontal_cover}</Cover>
+              <Summary>${comicInfo.data.evaluate}</Summary>
+              <Manga>YesAndRightToLeft</Manga>
+            </ComicInfo>
+            `;
+            comicZipFolder.file("ComicInfo.xml", comicInfoXml);
           }
           const blob = await zip.generateAsync({ type: "blob" });
           dir.removeEntry(comicFolder.name, { recursive: true });
           const a = document.createElement("a");
           const url = URL.createObjectURL(blob);
           a.href = url;
-          a.download = `${comicFolder.name}.zip`;
+          a.download = `${comicFolder.name}.${
+            format === "cbz" ? "cbz" : "zip"
+          }`;
           a.click();
           URL.revokeObjectURL(url);
         }
