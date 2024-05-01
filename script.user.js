@@ -144,7 +144,6 @@
       return await result.json();
     },
   };
-  const comicId = location.pathname.split("mc")[1];
   const createStyles = () => {
     const style = document.createElement("style");
     style.innerText += `.b-toolbox-d-flex { display: flex } .b-toolbox-d-none { display: none } .b-toolbox-flex-column { flex-direction: column }`;
@@ -197,6 +196,7 @@
       };
     };
     createToolboxShowBtn(popupPanel, toolboxPanel, styles);
+    const comicId = location.pathname.split("mc")[1];
     const comicInfo = await api.getComicDetail(comicId);
     const createStatusDisplay = (parentPanel) => {
       const panel = document.createElement("div");
