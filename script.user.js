@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B 漫工具箱
 // @namespace    https://github.com/SofiaXu/BilibiliComicToolBox
-// @version      2.3.1
+// @version      2.3.2
 // @description  进行一键购买和下载漫画的工具箱，对历史/收藏已读完漫画进行高亮为绿色，将阅读页面图片替换成原图大小
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
@@ -593,21 +593,11 @@
             let mangaData = JSON.parse(cachedManga);
             if (
               mangaData.ordCount !== manga.ord_count ||
-              (mangaData.readEpShortTitle &&
-                mangaData.readEpShortTitle !== manga.last_ep_short_title)
+              mangaData.readEpShortTitle !== manga.last_ep_short_title ||
+              !mangaData.readIndex
             ) {
-              if (
-                mangaData.ordCount !== manga.ord_count &&
-                mangaData.readEpShortTitle === manga.last_ep_short_title
-              ) {
-                mangaData.ordCount = manga.ord_count;
-                mangaData.readIndex =
-                  manga.readIndex + (manga.ord_count - mangaData.ordCount);
-                localStorage.setItem(mangaCacheKey, JSON.stringify(mangaData));
-              } else {
-                mangaData = await reloadMangaData(manga);
-                localStorage.setItem(mangaCacheKey, JSON.stringify(mangaData));
-              }
+              mangaData = await reloadMangaData(manga);
+              localStorage.setItem(mangaCacheKey, JSON.stringify(mangaData));
             }
             node.appendChild(createTag(mangaData));
           } else {
