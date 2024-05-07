@@ -22,6 +22,8 @@
 
 2. 不能看原图质量？好，每个漫画都可以看到原图质量，不需要任何操作
 
+![设置分辨率](https://github.com/SofiaXu/BilibiliComicToolBox/raw/master/img/005.png)
+
 ![查看原图](https://github.com/SofiaXu/BilibiliComicToolBox/raw/master/img/002.png)
 
 3. 每次活动完都送一堆券？慢慢点购买很累？好，一键用券购买整本漫画，不需要任何操作
