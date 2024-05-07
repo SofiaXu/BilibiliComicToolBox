@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B 漫工具箱
 // @namespace    https://github.com/SofiaXu/BilibiliComicToolBox
-// @version      2.3.2
+// @version      2.4.0
 // @description  进行一键购买和下载漫画的工具箱，对历史/收藏已读完漫画进行高亮为绿色，将阅读页面图片替换成原图大小
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
@@ -155,46 +155,45 @@
       },
     };
   };
+  const createPopupPanel = (styles) => {
+    const panel = document.createElement("div");
+    styles.addStyle(
+      `.b-toolbox-popup { top:70px; right: 1rem; position: fixed; border-radius: 6px; max-height: 50% }`
+    );
+    panel.className = "b-toolbox-popup b-toolbox-d-flex";
+    document.body.append(panel);
+    return panel;
+  };
+  const createToolboxPanel = (parentPanel, styles) => {
+    const panel = document.createElement("div");
+    styles.addStyle(
+      `.b-toolbox-panel { margin-right: 1.5rem; background: rgba(255, 255, 255, 0.8); padding: 1rem; gap: 1rem }`
+    );
+    panel.className = "b-toolbox-panel b-toolbox-d-none b-toolbox-flex-column";
+    parentPanel.append(panel);
+    return panel;
+  };
+  const createToolboxShowBtn = (parentPanel, showablePanel, styles) => {
+    const container = document.createElement("div");
+    container.className = "b-toolbox-d-flex b-toolbox-flex-column";
+    parentPanel.append(container);
+    const btn = document.createElement("button");
+    btn.role = "button";
+    btn.insertAdjacentHTML("beforeEnd", "<div>工具箱</div>");
+    styles.addStyle(
+      `.b-toolbox-toolbox-btn { align-items: center; background-color: #32aaff; border: none; border-radius: 6px; color: #fff; cursor: pointer; display: flex; justify-content: center; padding: 1rem 0.5rem }`
+    );
+    btn.className += "b-toolbox-toolbox-btn";
+    container.append(btn);
+    btn.onclick = () => {
+      showablePanel.classList.toggle("b-toolbox-d-none");
+      showablePanel.classList.toggle("b-toolbox-d-flex");
+    };
+  };
   const styles = createStyles();
   if (location.pathname.match(/^\/detail\/mc\d+$/)) {
-    const createPopupPanel = (styles) => {
-      const panel = document.createElement("div");
-      styles.addStyle(
-        `.b-toolbox-popup { top:70px; right: 1rem; position: fixed; border-radius: 6px; max-height: 50% }`
-      );
-      panel.className = "b-toolbox-popup b-toolbox-d-flex";
-      document.body.append(panel);
-      return panel;
-    };
     const popupPanel = createPopupPanel(styles);
-    const createToolboxPanel = (parentPanel, styles) => {
-      const panel = document.createElement("div");
-      styles.addStyle(
-        `.b-toolbox-panel { margin-right: 1.5rem; background: rgba(255, 255, 255, 0.8); padding: 1rem; gap: 1rem }`
-      );
-      panel.className =
-        "b-toolbox-panel b-toolbox-d-none b-toolbox-flex-column";
-      parentPanel.append(panel);
-      return panel;
-    };
     const toolboxPanel = createToolboxPanel(popupPanel, styles);
-    const createToolboxShowBtn = (parentPanel, showablePanel, styles) => {
-      const container = document.createElement("div");
-      container.className = "b-toolbox-d-flex b-toolbox-flex-column";
-      parentPanel.append(container);
-      const btn = document.createElement("button");
-      btn.role = "button";
-      btn.insertAdjacentHTML("beforeEnd", "<div>工具箱</div>");
-      styles.addStyle(
-        `.b-toolbox-toolbox-btn { align-items: center; background-color: #32aaff; border: none; border-radius: 6px; color: #fff; cursor: pointer; display: flex; justify-content: center; padding: 1rem 0.5rem }`
-      );
-      btn.className += "b-toolbox-toolbox-btn";
-      container.append(btn);
-      btn.onclick = () => {
-        showablePanel.classList.toggle("b-toolbox-d-none");
-        showablePanel.classList.toggle("b-toolbox-d-flex");
-      };
-    };
     createToolboxShowBtn(popupPanel, toolboxPanel, styles);
     const comicId = location.pathname.split("mc")[1];
     const comicInfo = await api.getComicDetail(comicId);
@@ -688,7 +687,83 @@
     observer.observe(targetNode, config);
   }
   if (location.pathname.match(/^\/mc\d+\/\d+$/)) {
+    const popupPanel = createPopupPanel(styles);
+    const toolboxPanel = createToolboxPanel(popupPanel, styles);
+    createToolboxShowBtn(popupPanel, toolboxPanel, styles);
+    styles.addStyle(`
+    .b-toolbox-popup { z-index:1000; top:70px; right: 2%; position: fixed; border-radius: 6px; max-height: 50% }
+    .b-toolbox-toolbox-btn {
+      font-family: inherit;
+      outline: none;
+      user-select: none;
+      cursor: pointer;
+      transform-origin: center center;
+      background-color: rgba(0, 0, 0, .95);
+      border: 1px solid #3e3e3e;
+      color: hsla(0, 0%, 100%, .7);
+      font-size: 12px;
+      margin: 5px 0;
+      border-radius: 40px;
+      padding: 5px 16px;
+      width: 135px;
+      margin-right: 27px;
+    }
+    .b-toolbox-toolbox-btn>div {
+      font-family: inherit;
+      user-select: none;
+      cursor: pointer;
+      color: hsla(0, 0%, 100%, .7);
+      font-size: 12px;
+      line-height: 28px;
+    }
+    .b-toolbox-panel {
+      background: rgba(39, 39, 39, .9);
+      border-radius: 16px;
+      padding: 16px 16px 24px;
+      color: #fff;
+      animation: scale-in-ease .4s cubic-bezier(.22,.58,.12,.98);
+    }
+    `);
+    const key = "bToolboxResolution";
     const originalXhrOpen = XMLHttpRequest.prototype.open;
+    const createResolutionSelector = (parentPanel) => {
+      const resolutionSelectionContainer = document.createElement("div");
+      resolutionSelectionContainer.className =
+        "b-toolbox-d-flex b-toolbox-flex-column";
+      parentPanel.append(resolutionSelectionContainer);
+      const resolutionLabel = document.createElement("label");
+      resolutionLabel.innerText = "分辨率选择";
+      resolutionSelectionContainer.append(resolutionLabel);
+      const resolutionSelect = document.createElement("select");
+      resolutionSelect.insertAdjacentHTML(
+        "afterbegin",
+        `
+        <option value="@800w.jpg">低清 - 800w - JPG</option>
+        <option value="@1100w.jpg">默认设置 - 1100w - JPG</option>
+        <option value="@1400w.jpg">超清 - 1400w - JPG</option>
+        <option value="">原图 - 无宽度缩放 - JPG</option>
+        <option value="@800w.webp">低清 - 800w - WebP</option>
+        <option value="@1100w.webp">高清 - 1100w - WebP</option>
+        <option value="@1400w.webp">超清 - 1400w - WebP</option>
+        <option value="@1100w.png">仅转码 - 无宽度缩放 - WebP</option>
+      `
+      );
+      resolutionSelectionContainer.append(resolutionSelect);
+      const resolution = localStorage.getItem(key);
+      if (resolution) {
+        resolutionSelect.value = resolution;
+      } else {
+        resolutionSelect.value = "";
+        localStorage.setItem(key, "");
+      }
+      XMLHttpRequest.prototype.resolution = resolutionSelect.value;
+      resolutionSelect.addEventListener("change", () => {
+        localStorage.setItem(key, resolutionSelect.value);
+        XMLHttpRequest.prototype.resolution = resolutionSelect.value;
+      });
+    };
+    createResolutionSelector(toolboxPanel);
+    XMLHttpRequest.prototype.needModifyBody = false;
     XMLHttpRequest.prototype.open = function (
       method,
       url,
@@ -698,21 +773,24 @@
     ) {
       if (
         url === "/twirp/comic.v1.Comic/ImageToken?device=pc&platform=web" &&
-        method === "POST"
+        method === "POST" &&
+        XMLHttpRequest.prototype.resolution !== "@1100w.jpg"
       ) {
-        XMLHttpRequest.prototype.NeedModifyBody = true;
+        XMLHttpRequest.prototype.needModifyBody = true;
       } else {
-        XMLHttpRequest.prototype.NeedModifyBody = false;
+        XMLHttpRequest.prototype.needModifyBody = false;
       }
       originalXhrOpen.apply(this, arguments);
     };
     const originalXhrSend = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.send = function (body) {
-      if (this.NeedModifyBody) {
+      if (this.needModifyBody) {
         const json = JSON.parse(body);
         const urls = JSON.parse(json.urls);
         body = JSON.stringify({
-          urls: JSON.stringify(urls.map((x) => x.replace(/\@1100w\.jpg$/, ""))),
+          urls: JSON.stringify(
+            urls.map((x) => x.replace(/\@1100w\.jpg$/, this.resolution))
+          ),
         });
         originalXhrSend.apply(this, [body]);
       } else {
