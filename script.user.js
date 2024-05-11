@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B 漫工具箱
 // @namespace    https://github.com/SofiaXu/BilibiliComicToolBox
-// @version      2.5.0
+// @version      2.5.1
 // @description  进行一键购买和下载漫画的工具箱，对历史/收藏已读完漫画进行高亮为绿色，将阅读页面图片替换成原图大小
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
@@ -795,7 +795,7 @@
       inputContainer.append(checkBoxContainer);
       const checkBox = document.createElement("input");
       checkBox.type = "checkbox";
-      checkBox.checked = false;
+      checkBox.checked = settings.stopAtEnd;
       checkBox.addEventListener("change", () => {
         settings.stopAtEnd = checkBox.checked;
         localStorage.setItem(settingsKey, JSON.stringify(settings));
