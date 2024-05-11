@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B 漫工具箱
 // @namespace    https://github.com/SofiaXu/BilibiliComicToolBox
-// @version      2.4.0
+// @version      2.5.0
 // @description  进行一键购买和下载漫画的工具箱，对历史/收藏已读完漫画进行高亮为绿色，将阅读页面图片替换成原图大小
 // @author       Aoba Xu
 // @match        https://manga.bilibili.com/*
@@ -550,6 +550,9 @@
         ` 未读 ${
           mangaData.readIndex > -1 ? mangaData.readIndex : mangaData.ordCount
         } 话`;
+      if (mangaData.dislockedEpCount && mangaData.dislockedEpCount > 0) {
+        tag.textContent += ` 未解锁 ${mangaData.dislockedEpCount} 话`;
+      }
       tag.className = "b-toolbox-price-tag";
       return tag;
     };
@@ -567,6 +570,7 @@
       const readEpId = data?.ep_list?.[readIndex]?.id;
       const readEpShortTitle = data?.ep_list?.[readIndex]?.short_title;
       const ordCount = data?.ep_list?.length;
+      const dislockedEpCount = data?.ep_list?.filter((x) => x.is_locked).length;
       return {
         price,
         latestEpId,
@@ -575,6 +579,7 @@
         readEpShortTitle,
         ordCount,
         readIndex,
+        dislockedEpCount,
       };
     };
     const processUnreadManga = async (manga, node) => {
@@ -616,6 +621,20 @@
       lastPathname === "/account-center/my-favourite"
         ? api.listFavorite
         : api.listHistory;
+    styles.addStyle(`
+        .b-toolbox-manga-card-read { background-color: rgb(123, 213, 85) }
+        .b-toolbox-manga-card-unread { background-color: rgb(61, 180, 242) }
+        .b-toolbox-price-tag {
+          position: absolute;
+          left: 0;
+          top: 0;
+          background-color: rgba(0, 0, 0, 0.7);
+          color: white;
+          padding: 2px 4px;
+          font-size: 12px;
+          border-radius: 0 0 4px 4px;
+        }
+      `);
     const observer = new MutationObserver(async (mutationsList) => {
       const newOrder = parseInt(
         localStorage.getItem("BilibiliManga:favListOrder")
@@ -638,20 +657,6 @@
       mangaList.forEach((manga) => {
         mangaMap.set(manga.comic_id, manga);
       });
-      styles.addStyle(`
-        .b-toolbox-manga-card-read { background-color: rgb(123, 213, 85) }
-        .b-toolbox-manga-card-unread { background-color: rgb(61, 180, 242) }
-        .b-toolbox-price-tag {
-          position: absolute;
-          left: 0;
-          top: 0;
-          background-color: rgba(0, 0, 0, 0.7);
-          color: white;
-          padding: 2px 4px;
-          font-size: 12px;
-          border-radius: 0 0 4px 0;
-        }
-      `);
       const tasks = [];
       for (const mutation of mutationsList) {
         if (mutation.target.className === "p-relative") {
@@ -763,6 +768,93 @@
       });
     };
     createResolutionSelector(toolboxPanel);
+    const createAutoPlayBtn = (parentPanel) => {
+      const settingsKey = "bToolboxAutoPlaySettings";
+      const settings = JSON.parse(localStorage.getItem(settingsKey)) || {
+        interval: 5000,
+        stopAtEnd: false,
+      };
+      const inputContainer = document.createElement("div");
+      inputContainer.className = "b-toolbox-d-flex b-toolbox-flex-column";
+      parentPanel.append(inputContainer);
+      const label = document.createElement("label");
+      label.innerText = "自动翻页时间（秒）";
+      inputContainer.append(label);
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = 1;
+      input.value = settings.interval / 1000;
+      input.step = 1;
+      input.addEventListener("change", () => {
+        settings.interval = parseInt(input.value) * 1000;
+        localStorage.setItem(settingsKey, JSON.stringify(settings));
+      });
+      inputContainer.append(input);
+      const checkBoxContainer = document.createElement("div");
+      checkBoxContainer.className = "b-toolbox-d-flex";
+      inputContainer.append(checkBoxContainer);
+      const checkBox = document.createElement("input");
+      checkBox.type = "checkbox";
+      checkBox.checked = false;
+      checkBox.addEventListener("change", () => {
+        settings.stopAtEnd = checkBox.checked;
+        localStorage.setItem(settingsKey, JSON.stringify(settings));
+      });
+      checkBoxContainer.append(checkBox);
+      const checkBoxLabel = document.createElement("label");
+      checkBoxLabel.innerText = "每话最后一页停止";
+      checkBoxContainer.append(checkBoxLabel);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.insertAdjacentHTML("beforeEnd", "<div>自动翻页</div>");
+      btn.className = "b-toolbox-toolbox-btn";
+      parentPanel.append(btn);
+      const tooltips = document.createElement("div");
+      tooltips.innerText = "Ctrl + 空格键 暂停/继续 自动翻页";
+      tooltips.style.fontSize = "12px";
+      parentPanel.append(tooltips);
+      let timer = 0;
+      const startAutoPlay = () => {
+        if (timer) {
+          clearInterval(timer);
+          timer = 0;
+          btn.textContent = "自动翻页";
+          input.disabled = false;
+          checkBox.disabled = false;
+        } else {
+          const interval = settings.interval;
+          input.disabled = true;
+          checkBox.disabled = true;
+          timer = setInterval(() => {
+            if (settings.stopAtEnd) {
+              const endOfEp = document.querySelector(".app-promo");
+              if (endOfEp) {
+                clearInterval(timer);
+                timer = 0;
+                btn.textContent = "自动翻页";
+                input.disabled = false;
+                checkBox.disabled = false;
+                return;
+              }
+            }
+            const event = new KeyboardEvent("keyup", {
+              key: "ArrowDown",
+              code: "ArrowDown",
+              bubbles: true,
+            });
+            document.dispatchEvent(event);
+          }, interval);
+          btn.textContent = "停止翻页";
+        }
+      };
+      btn.addEventListener("click", startAutoPlay);
+      window.addEventListener("keyup", (event) => {
+        if (event.key === " " && event.ctrlKey) {
+          startAutoPlay();
+        }
+      });
+    };
+    createAutoPlayBtn(toolboxPanel);
     XMLHttpRequest.prototype.needModifyBody = false;
     XMLHttpRequest.prototype.open = function (
       method,
